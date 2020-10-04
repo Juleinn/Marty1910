@@ -5,6 +5,9 @@
 #include <string.h>
 #include "endian.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #define P2_0        18
 #define EAN         19
 #define MFB         13
@@ -99,14 +102,20 @@ typedef struct EventHeader {
 } __attribute__((packed)) EventHeader ;
 
 typedef enum EventType {
-    ACK=0,
-    BTM_STATUS=1,
+    ACK             = 0x00,
+    BTM_STATUS      = 0x01,
+    CALL_STATUS     = 0x02,
 } EventType;
 
 typedef struct Ack {
     uint8_t opcode;
     uint8_t status;
 } __attribute__((packed)) Ack;
+
+typedef struct CallStatus {
+    uint8_t data_base_index;
+    uint8_t call_status;
+} __attribute__((packed)) CallStatus;
 
 typedef struct BTMStatus {
     uint8_t status;
@@ -141,6 +150,8 @@ static int bm64_wait_event_buffer(uint8_t * buf, int * read_len)
         return BM64_DATA_TOOSHORT;
     }
 
+    *read_len = len;
+
     return BM64_NOERROR;
 }
 
@@ -158,24 +169,39 @@ static int bm64_wait_event(Event * evt)
 
     EventHeader * header = (EventHeader*) buf;     
     printf("Event : %s\n", EVENT_NAMES[header->event_code]);
+    for(int i=0;i<read_len;i++) printf("%02X ", buf[i]);
+    printf("\n");
     switch(header->event_code)
     {
         case ACK:
-            printf("ACK\n");
             evt->type = ACK;
+            Ack ack;
+            memcpy(&ack, buf+sizeof(EventHeader), sizeof(ack));
+            printf("ACK opcode %d status %d\n", ack.opcode, ack.status);
             break;
 
         case BTM_STATUS:
             {
-                BTMStatus * status = (BTMStatus*) (buf+sizeof(header)); 
+                BTMStatus * status = (BTMStatus*) (buf+sizeof(EventHeader)); 
                 printf("BTM Status : %s\n", BTM_STATUSES[status->status]);
 
                 evt->type = BTM_STATUS;
                 break;
             };
+
+        case CALL_STATUS:
+            {
+                CallStatus cs;
+                cs.data_base_index = buf[sizeof(EventHeader)];
+                cs.call_status = buf[sizeof(EventHeader)+sizeof(cs.data_base_index)];
+                printf("Call status : (%d) %s\n", cs.call_status, CALL_STATUSES[cs.call_status]);
+                break;
+            };
+
         default:
             break;
     }
+    printf("\n");
     return BM64_NOERROR;
 }
 
@@ -210,15 +236,12 @@ static void bm64_change_device_name(char* new_name)
     bm64_make_command(0x05, parameter, 32, buf, &dest_len);
 
     uart_write_bytes(UART_PORT_NUMBER, (const char *) buf, dest_len);
-
-    Event evt;
-    bm64_wait_event(&evt);
 }
 
 static void bm64_make_call(char* number)
 {
     uint8_t parameter[20] = {0x00};
-    sprintf((char*)parameter+1, "ATD+%s", number);
+    sprintf((char*)parameter+1, "ATD %s\r\n", number);
 
     uint8_t buf[1024];   
     int dest_len = 0;
@@ -227,18 +250,27 @@ static void bm64_make_call(char* number)
 
     uart_write_bytes(UART_PORT_NUMBER, (const char *) buf, dest_len);
 
+}
+
+
+static void bm64_rx_task()
+{
     Event evt;
     while(1)
     {
+        vTaskDelay(1000 / portTICK_RATE_MS);
         bm64_wait_event(&evt);
     }
 }
+
 
 /* Externally defined functions */
 int bm64_init()
 {
     bm64_gpio_init();
     bm64_uart_init();
+
+    xTaskCreate(bm64_rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
 
     bm64_reset();
 
@@ -247,10 +279,13 @@ int bm64_init()
 
     bm64_change_device_name("Marty 1910");
 
-    vTaskDelay(10000 / portTICK_RATE_MS);
+    while(1)
+    {
+        vTaskDelay(5000 / portTICK_RATE_MS);
 
-    printf("Starting call\n");
-    bm64_make_call("666");
+        printf("Starting call\n");
+        // bm64_make_call("666");
+    }
 
     return BM64_NOERROR; 
 }
