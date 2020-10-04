@@ -241,7 +241,7 @@ static void bm64_change_device_name(char* new_name)
 static void bm64_make_call(char* number)
 {
     uint8_t parameter[20] = {0x00};
-    sprintf((char*)parameter+1, "ATD %s\r\n", number);
+    sprintf((char*)parameter+1, "%s", number);
 
     uint8_t buf[1024];   
     int dest_len = 0;
@@ -265,6 +265,8 @@ static void bm64_rx_task()
 
 
 /* Externally defined functions */
+
+
 int bm64_init()
 {
     bm64_gpio_init();
@@ -279,30 +281,10 @@ int bm64_init()
 
     bm64_change_device_name("Marty 1910");
 
-    while(1)
-    {
-        vTaskDelay(5000 / portTICK_RATE_MS);
+    vTaskDelay(3000 / portTICK_RATE_MS);
+    // bm64_make_call("0973134411");
 
-        printf("Starting call\n");
-        // bm64_make_call("666");
-    }
 
     return BM64_NOERROR; 
 }
 
-void bm64_test()
-{
-    uint8_t parameter[32] = {0x00};
-    sprintf((char*)parameter, "Marty 1910");
-    uint8_t buf[1024];
-    int dest_len = 0;
-
-    bm64_make_command(0x5, parameter, 32, buf, &dest_len);
-
-    int i;
-    for(i=0;i<dest_len;i++)
-    {
-        printf("0x%02X ", buf[i]);
-    }
-    printf("\r\n");
-}
