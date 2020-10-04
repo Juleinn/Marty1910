@@ -19,11 +19,10 @@
 void app_main(void)
 {
     vTaskDelay(2000 / portTICK_RATE_MS);
-    bm64_test();
-
+    bm64_init();
+    
     while(1) {
         vTaskDelay(1000 / portTICK_RATE_MS);
-        printf("Running...\r\n");
     }
 }
 
