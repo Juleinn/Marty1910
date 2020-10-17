@@ -105,6 +105,7 @@ typedef enum EventType {
     ACK             = 0x00,
     BTM_STATUS      = 0x01,
     CALL_STATUS     = 0x02,
+    PHONE_CURRENT_BATTERY_LEVEL = 0x07,
 } EventType;
 
 typedef struct Ack {
@@ -120,6 +121,11 @@ typedef struct CallStatus {
 typedef struct BTMStatus {
     uint8_t status;
 } __attribute__((packed)) BTMStatus;
+
+typedef struct __attribute__((packed)) PhoneBatteryLevel {
+    uint8_t data_base_index;
+    uint8_t battery_level;
+} PhoneBatteryLevel;
 
 typedef struct Event {
     EventType type;
@@ -169,8 +175,6 @@ static int bm64_wait_event(Event * evt)
 
     EventHeader * header = (EventHeader*) buf;     
     printf("Event : %s\n", EVENT_NAMES[header->event_code]);
-    for(int i=0;i<read_len;i++) printf("%02X ", buf[i]);
-    printf("\n");
     switch(header->event_code)
     {
         case ACK:
@@ -198,6 +202,13 @@ static int bm64_wait_event(Event * evt)
                 break;
             };
 
+        case PHONE_CURRENT_BATTERY_LEVEL:
+            {
+                PhoneBatteryLevel * bl = (PhoneBatteryLevel*) buf+sizeof(EventHeader);
+                printf("Phone battery level = %d/220\n", bl->battery_level);
+
+                break;
+            };
         default:
             break;
     }
