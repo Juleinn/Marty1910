@@ -21,11 +21,6 @@
 #define UART_TXD_PIN     4
 #define UART_BUF_SIZE    1024
 
-/* Static definitions */
-static void bm64_uart_init();
-static void bm64_reset(void);
-static void bm64_gpio_init();
-
 uart_config_t uart_config = {
     .baud_rate = UART_SPEED,
     .data_bits = UART_DATA_8_BITS,
@@ -105,8 +100,19 @@ typedef enum EventType {
     ACK             = 0x00,
     BTM_STATUS      = 0x01,
     CALL_STATUS     = 0x02,
+	CALLER_ID	    = 0x03,
     PHONE_CURRENT_BATTERY_LEVEL = 0x07,
 } EventType;
+
+typedef enum MMIAction {
+    ACCEPT_CALL = 0x04,
+    REJECT_CALL = 0x05,
+} __attribute__((packed)) MMIAction;
+
+typedef struct MMIActionPayload {
+    uint8_t data_base_index;
+    uint8_t action;
+} __attribute__((packed)) MMIActionPayload;
 
 typedef struct Ack {
     uint8_t opcode;
@@ -133,6 +139,13 @@ typedef struct Event {
         struct Ack ack;
     };
 } Event;
+
+/* Static definitions */
+static void bm64_uart_init();
+static void bm64_reset(void);
+static void bm64_gpio_init();
+static int bm64_send_command(uint8_t opcode, uint8_t * data, int data_len, uint8_t *destination, int *dest_len);
+static void bm64_accept_call();
 
 static int bm64_wait_event_buffer(uint8_t * buf, int * read_len)
 {
@@ -199,6 +212,18 @@ static int bm64_wait_event(Event * evt)
                 cs.data_base_index = buf[sizeof(EventHeader)];
                 cs.call_status = buf[sizeof(EventHeader)+sizeof(cs.data_base_index)];
                 printf("Call status : (%d) %s\n", cs.call_status, CALL_STATUSES[cs.call_status]);
+
+                break;
+            };
+        case CALLER_ID:
+            {
+                buf[read_len] = '\0';
+                printf("Caller ID : %s\r\n", &buf[sizeof(EventHeader) + 1]);
+                // pick up 
+                printf("Wait 2s before picking up\r\n");
+                vTaskDelay(2000 / portTICK_RATE_MS);
+                printf("Picking up\r\n");
+                bm64_accept_call();
                 break;
             };
 
@@ -234,6 +259,30 @@ static int bm64_make_command(uint8_t opcode, uint8_t * data, int data_length, ui
 
     return BM64_NOERROR;
 }
+
+static int bm64_send_command(uint8_t opcode, uint8_t * data, int data_len, uint8_t *destination, int *dest_len)
+{
+    int status = bm64_make_command((uint8_t) opcode, data, data_len, destination, dest_len);
+    if (status != BM64_NOERROR) 
+    {
+        return status;
+    }
+    uart_write_bytes(UART_PORT_NUMBER, (const char *) destination, *dest_len);
+    return BM64_NOERROR;
+}
+
+static void bm64_accept_call()
+{
+    MMIActionPayload mmi = {
+        .data_base_index = 0,
+        .action = ACCEPT_CALL,
+    };
+
+    uint8_t buffer[64];
+    int buffer_len = 64;
+#define MMI_ACTION 0x02
+    bm64_send_command(MMI_ACTION, (uint8_t*)&mmi, sizeof(mmi), buffer, &buffer_len);
+};
 
 static void bm64_change_device_name(char* new_name)
 {
