@@ -15,6 +15,7 @@
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "bm64_driver.h"
+#include "ag1171_driver.h"
 
 #define RELAY_1         25
 #define RELAY_2         26
@@ -59,8 +60,11 @@ void app_main(void)
 
     // xTaskCreate(relay_task, "relay_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
 
-    init_relays();
-    bm64_init();
+    //init_relays();
+    //bm64_init();
+    ag1171_init();
+    vTaskDelay(1000 / portTICK_RATE_MS);
+    ag1171_ring_loop();
     
     while(1) {
         vTaskDelay(1000 / portTICK_RATE_MS);
