@@ -63,8 +63,8 @@ void app_main(void)
     //init_relays();
     //bm64_init();
     ag1171_init();
-    vTaskDelay(1000 / portTICK_RATE_MS);
-    ag1171_ring_loop();
+    //vTaskDelay(1000 / portTICK_RATE_MS);
+    //ag1171_ring_loop();
     
     while(1) {
         vTaskDelay(1000 / portTICK_RATE_MS);
