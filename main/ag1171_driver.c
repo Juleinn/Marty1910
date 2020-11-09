@@ -51,6 +51,7 @@ static void ag1171_task(void* arg)
             lastTickCount = xTaskGetTickCount();
         }
     }
+}
 
 
 
@@ -94,9 +95,9 @@ void ring_once()
     {
         // 25ms * 2 = 50ms = 20Hz (ring tone freq from original Marty 1910 phones)
         gpio_set_level(FR, 0);
-        vTaskDelay(50 / portTICK_RATE_MS);
+        vTaskDelay(25 / portTICK_RATE_MS);
         gpio_set_level(FR, 1);
-        vTaskDelay(50 / portTICK_RATE_MS);
+        vTaskDelay(25 / portTICK_RATE_MS);
     }
     
     // ag1171 datasheet recommends wait >10ms after FR back to high
