@@ -53,7 +53,10 @@ static void ag1171_task(void* arg)
     }
 }
 
-
+bool ag1171_is_offhook()
+{
+    return gpio_get_level(SHK);
+}
 
 void ag1171_init()
 {
