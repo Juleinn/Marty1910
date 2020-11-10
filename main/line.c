@@ -54,6 +54,7 @@ void line_connect(bool connect)
 {
     if(connect) 
     {
+        printf("Line connect !!\n");
         gpio_set_level(RELAY_1, 0);
         line_connected = true;
     }

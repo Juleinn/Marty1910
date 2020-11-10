@@ -86,7 +86,7 @@ static const char * BTM_STATUSES[] = {
 ,"MAP disconnected"
 ,"ACL connected"};
 
-static const char * CALL_STATUSES[] = {
+static __attribute__((unused)) const char *  CALL_STATUSES[] = {
 "Idle",
 "voice dial",
 "incoming call",

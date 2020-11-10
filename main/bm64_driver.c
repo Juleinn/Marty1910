@@ -187,7 +187,7 @@ static int bm64_wait_event(Event * evt)
     }
 
     EventHeader * header = (EventHeader*) buf;     
-    printf("Event : %s\n", EVENT_NAMES[header->event_code]);
+    // printf("Event : %s\n", EVENT_NAMES[header->event_code]);
     switch(header->event_code)
     {
         case ACK:
@@ -211,7 +211,10 @@ static int bm64_wait_event(Event * evt)
                 CallStatus cs;
                 cs.data_base_index = buf[sizeof(EventHeader)];
                 cs.call_status = buf[sizeof(EventHeader)+sizeof(cs.data_base_index)];
-                printf("Call status : (%d) %s\n", cs.call_status, CALL_STATUSES[cs.call_status]);
+                if(cs.call_status == CALL_STATUS_INCOMMING_CALL) 
+                {
+                    bm64_on_incomming_call();
+                }
 
                 break;
             };
@@ -318,7 +321,7 @@ static void bm64_rx_task()
     Event evt;
     while(1)
     {
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(50 / portTICK_RATE_MS);
         bm64_wait_event(&evt);
     }
 }
@@ -348,3 +351,7 @@ int bm64_init()
     return BM64_NOERROR; 
 }
 
+void bm64_on_incomming_call()
+{
+    printf("Incomming call !!\n");
+}
