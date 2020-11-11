@@ -45,18 +45,25 @@ TaskHandle_t taskMainLoop_Handle;
 
 static volatile SemaphoreHandle_t semaphore_idle = NULL;
 static volatile SemaphoreHandle_t semaphore_ringing = NULL;
+
+static xQueueHandle queue_idle = NULL;
+static xQueueHandle queue_ringing = NULL;
+static xQueueHandle queue_communication = NULL;
+
 // override weak function
 void bm64_on_incomming_call()
 {
     printf("Incomming call (main override)\n");
     // go to ringing state
-    xSemaphoreGiveFromISR(semaphore_idle, NULL);
+    static uint32_t event=0;
+    xQueueSend(queue_idle, &event, 0); 
 }
 
 void ag1171_on_phone_offhook()
 {
     printf("Phone off-hook (main override)\n");
-    xSemaphoreGiveFromISR(semaphore_ringing, NULL);
+    static uint32_t event=0;
+    xQueueSendFromISR(queue_ringing, &event, 0);
 }
 
 void ag1171_on_phone_onhook()
@@ -70,6 +77,7 @@ void task_main_loop()
     printf("main_loop...\n");
     while(1)
     {
+        printf("current_state : %s\n", STATE_NAMES[current_state]);
         switch(current_state)
         {
             case IDLE:
@@ -77,7 +85,9 @@ void task_main_loop()
                 line_connect(false);
 
                 printf("Idling...\n");
-                xSemaphoreTake(semaphore_idle,portMAX_DELAY);
+                //xSemaphoreTake(semaphore_idle,portMAX_DELAY);
+                uint32_t event;
+                xQueueReceive(queue_idle, &event, portMAX_DELAY);
                 printf("Idling complete ! \n");
 
                 if(line_is_cranking())
@@ -107,7 +117,8 @@ void task_main_loop()
             case RINGING:
                 printf("RINGING...\n");
                 // wait for the phone to be picked up
-                xSemaphoreTake(semaphore_ringing,portMAX_DELAY);
+                xQueueReceive(queue_ringing, &event, portMAX_DELAY);
+                printf("Received event phone off-hook\n");
                 if(ag1171_is_offhook())
                 {
                     printf("Phone is off-hook : accepting the call\n");
@@ -119,10 +130,8 @@ void task_main_loop()
 
                 break;
             case COMMUNICATION:
-                while(1) {
-                    printf("In communication...\n");
-                    vTaskDelay(1000 / portTICK_RATE_MS);
-                }
+                // TODO monitor back on-hook and call ended (on smartphone side)
+                xQueueReceive(queue_communication, &event, portMAX_DELAY);
                 break;
             case WAIT_ON_HOOK:
                 break;
@@ -136,9 +145,14 @@ void task_main_loop()
 
 void app_main(void)
 {
+
+    queue_idle = xQueueCreate(10, sizeof(uint32_t));
+    queue_ringing = xQueueCreate(10, sizeof(uint32_t));
+    queue_communication = xQueueCreate(10, sizeof(uint32_t));
+
     line_init();
     line_connect(true);
-    vTaskDelay(1000 / portTICK_RATE_MS);
+    vTaskDelay(200 / portTICK_RATE_MS);
 
     bm64_init();
     ag1171_init();
@@ -150,7 +164,6 @@ void app_main(void)
     task_main_loop();
 
     while(1) {
-        printf("Phone cranking : %s\n", (line_is_cranking() ? "true": "false"));
         vTaskDelay(1000 / portTICK_RATE_MS);
     }
 }
