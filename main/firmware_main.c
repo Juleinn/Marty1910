@@ -145,8 +145,12 @@ void task_main_loop()
 
                 break;
             case COMMUNICATION:
-                // TODO monitor back on-hook and call ended (on smartphone side)
                 xQueueReceive(queue_communication, &event, portMAX_DELAY);
+                if(event == ON_HOOK) 
+                {
+                    printf("On-hook : end call\n");
+                    bm64_end_call();
+                }
                 break;
             case WAIT_ON_HOOK:
                 break;
