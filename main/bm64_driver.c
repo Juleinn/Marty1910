@@ -107,7 +107,7 @@ typedef enum EventType {
 typedef enum MMIAction {
     ACCEPT_CALL = 0x04,
     REJECT_CALL = 0x05,
-    END_CALL = 0x06,
+    END_CALL = 0x02,
 } __attribute__((packed)) MMIAction;
 
 typedef struct MMIActionPayload {
