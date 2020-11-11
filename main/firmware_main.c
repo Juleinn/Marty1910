@@ -43,15 +43,21 @@ static State current_state = IDLE;
 TaskHandle_t taskMainLoop_Handle;
 
 
-static volatile SemaphoreHandle_t xSemaphore = NULL;
+static volatile SemaphoreHandle_t semaphore_idle = NULL;
+static volatile SemaphoreHandle_t semaphore_ringing = NULL;
 // override weak function
 void bm64_on_incomming_call()
 {
     printf("Incomming call (main override)\n");
     // go to ringing state
-    xSemaphoreGiveFromISR(xSemaphore, NULL);
+    xSemaphoreGiveFromISR(semaphore_idle, NULL);
 }
 
+void ag1171_on_phone_offhook()
+{
+    printf("Phone off-hook (main override)\n");
+    xSemaphoreGiveFromISR(semaphore_ringing, NULL);
+}
 
 void task_main_loop()
 {
@@ -65,7 +71,7 @@ void task_main_loop()
                 line_connect(false);
 
                 printf("Idling...\n");
-                xSemaphoreTake(xSemaphore,portMAX_DELAY);
+                xSemaphoreTake(semaphore_idle,portMAX_DELAY);
                 printf("Idling complete ! \n");
 
                 if(line_is_cranking())
@@ -86,16 +92,31 @@ void task_main_loop()
                     }
                     else
                     {
-                        // TODO start ringing here
-                        printf("on-hook : ringing start\n");
+                        ag1171_start_ringing();
+                        current_state = RINGING;
+                        break;
                     }
-
+                }
+                break;
+            case RINGING:
+                printf("RINGING...\n");
+                // wait for the phone to be picked up
+                xSemaphoreTake(semaphore_ringing,portMAX_DELAY);
+                if(ag1171_is_offhook())
+                {
+                    printf("Phone is off-hook : accepting the call\n");
+                    ag1171_stop_ringing();
+                    bm64_accept_call();
+                    current_state = COMMUNICATION;
+                    break;
                 }
 
                 break;
-            case RINGING:
-                break;
             case COMMUNICATION:
+                while(1) {
+                    printf("In communication...\n");
+                    vTaskDelay(1000 / portTICK_RATE_MS);
+                }
                 break;
             case WAIT_ON_HOOK:
                 break;
@@ -117,7 +138,8 @@ void app_main(void)
     ag1171_init();
 
     // create main loop task
-    xSemaphore = xSemaphoreCreateBinary();
+    semaphore_idle = xSemaphoreCreateBinary();
+    semaphore_ringing = xSemaphoreCreateBinary();
 
     task_main_loop();
 
