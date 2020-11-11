@@ -20,6 +20,14 @@ static void IRAM_ATTR ag1171_shk_isr_handler(void* args)
     xQueueSendFromISR(gpio_evt_queue, &value, NULL);
 }
 
+
+static void ag1171_ring_task();
+
+void __attribute__((weak)) ag1171_on_phone_offhook()
+{
+    printf("Phone gone off-hook (weak)\n");
+}
+
 static void ag1171_task(void* arg)
 {
     uint32_t value;
@@ -37,6 +45,7 @@ static void ag1171_task(void* arg)
                     if(value)
                     {
                         printf("Phone off-hook\n");
+                        ag1171_on_phone_offhook();
                     }
                     else
                     {
@@ -110,11 +119,45 @@ void ring_once()
     gpio_set_level(RM, 0);
 }
 
-void ag1171_ring_loop()
+static volatile bool ringing = false;
+
+void ag1171_start_ringing()
 {
-    while(1)
+    ringing = true;
+    xTaskCreate(ag1171_ring_task, "ag1171_ring_task", 2048, NULL, 10, NULL);
+}
+
+void ag1171_stop_ringing()
+{
+    ringing = false;
+}
+
+static void ag1171_ring_task()
+{
+    while(ringing)
     {
-        ring_once();
+        gpio_set_level(RM, 1);
+
+        int i;
+        for(i=0;i<20;i++)
+        {
+            // 25ms * 2 = 50ms = 20Hz (ring tone freq from original Marty 1910 phones)
+            gpio_set_level(FR, 0);
+            if(!ringing) break; // try to exit as quickly as possible
+            vTaskDelay(25 / portTICK_RATE_MS);
+            gpio_set_level(FR, 1);
+            if(!ringing) break; // try to exit as quickly as possible
+            vTaskDelay(25 / portTICK_RATE_MS);
+        }
+
+        // ag1171 datasheet recommends wait >10ms after FR back to high
+        // this is achieved above but for safety lets do it here again
+        vTaskDelay(15 / portTICK_RATE_MS);
+
+        gpio_set_level(RM, 0);
+
+        if(!ringing) break; // try to exit as quickly as possible
         vTaskDelay(3000 / portTICK_RATE_MS);
     }
+    vTaskDelete(NULL);
 }
