@@ -140,7 +140,14 @@ void task_main_loop()
                 printf("RINGING...\n");
                 // wait for the phone to be picked up
                 xQueueReceive(queue_ringing, &event, portMAX_DELAY);
-                if(event == OFF_HOOK)
+                if(event == CALL_ENDED)
+                {
+                    printf("Call ended : back to idle\n");
+                    ag1171_stop_ringing();
+                    current_state = IDLE;
+                    break;
+                }
+                if(event == OFF_HOOK || ag1171_is_offhook())
                 {
                     printf("Phone is off-hook : accepting the call\n");
                     ag1171_stop_ringing();
@@ -148,18 +155,12 @@ void task_main_loop()
                     current_state = COMMUNICATION;
                     break;
                 } 
-                else if(event == CALL_ENDED)
-                {
-                    printf("Call ended : back to idle\n");
-                    ag1171_stop_ringing();
-                    current_state = IDLE;
-                }
 
                 break;
             case COMMUNICATION:
                 xQueueReceive(queue_communication, &event, portMAX_DELAY);
                 printf("COMMUNICATION : event name : %s\n", EVENT_NAMES[event]);
-                if(event == ON_HOOK) 
+                if(event == ON_HOOK || !ag1171_is_offhook()) 
                 {
                     printf("On-hook : end call\n");
                     bm64_end_call();
