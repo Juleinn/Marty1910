@@ -1,0 +1,19 @@
+digraph {
+    IDLE->CRANKING[label="INCOMMING_CALL"];
+    CRANKING->CONNECT_LINE[label=no];
+    CONNECT_LINE -> OFF_HOOK;
+    OFF_HOOK -> REJECT_CALL[label=yes];
+    OFF_HOOK -> START_RING[label=no];
+    START_RING -> RINGING;
+    RINGING->ACCEPT_CALL[label="Phone off-hook"]
+    ACCEPT_CALL->COMMUNICATION;
+
+    IDLE [label="IDLE", shape=rectangle];
+    RINGING [label="RINGING", shape=rectangle];
+    COMMUNICATION [label="COMMUNICATION", shape=rectangle];
+    CRANKING [label="CRANKING ?", shape=diamond];
+    OFF_HOOK [label="OFF_HOOK ?", shape=diamond];
+    CONNECT_LINE [label="connect_line()"];
+    START_RING [label="start_ring()"];
+    ACCEPT_CALL [label="accept_call()"];
+}
