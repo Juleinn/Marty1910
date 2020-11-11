@@ -28,6 +28,11 @@ void __attribute__((weak)) ag1171_on_phone_offhook()
     printf("Phone gone off-hook (weak)\n");
 }
 
+void __attribute__((weak)) ag1171_on_phone_onhook()
+{
+    printf("Phone gone on-hook (weak)\n");
+}
+
 static void ag1171_task(void* arg)
 {
     uint32_t value;
@@ -50,6 +55,7 @@ static void ag1171_task(void* arg)
                     else
                     {
                         printf("Phone on-hook\n");
+                        ag1171_on_phone_onhook();
                     }
                 }
             }

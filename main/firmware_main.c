@@ -59,6 +59,12 @@ void ag1171_on_phone_offhook()
     xSemaphoreGiveFromISR(semaphore_ringing, NULL);
 }
 
+void ag1171_on_phone_onhook()
+{
+    printf("Phone off-hook (main override)\n");
+    xSemaphoreGiveFromISR(semaphore_ringing, NULL);
+}
+
 void task_main_loop()
 {
     printf("main_loop...\n");

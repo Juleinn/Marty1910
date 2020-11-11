@@ -15,5 +15,6 @@ void ag1171_start_ringing();
 void ag1171_stop_ringing();
 
 void __attribute__((weak)) ag1171_on_phone_offhook();
+void __attribute__((weak)) ag1171_on_phone_onhook();
 
 #endif
