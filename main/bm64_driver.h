@@ -12,7 +12,9 @@ void bm64_reject_call();
 void bm64_end_call();
 
 void __attribute__((weak)) bm64_on_incomming_call();
+void __attribute__((weak)) bm64_on_call_status_idle();
 
 #define CALL_STATUS_INCOMMING_CALL 0x02
+#define CALL_STATUS_IDLE 0x00
 
 #endif

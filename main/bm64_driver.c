@@ -215,6 +215,10 @@ static int bm64_wait_event(Event * evt)
                 {
                     bm64_on_incomming_call();
                 }
+                if(cs.call_status == CALL_STATUS_IDLE)
+                {
+                    bm64_on_call_status_idle();
+                }
 
                 break;
             };
@@ -357,7 +361,12 @@ int bm64_init()
     return BM64_NOERROR; 
 }
 
-void bm64_on_incomming_call()
+void __attribute__((weak)) bm64_on_incomming_call()
 {
     printf("Incomming call !!\n");
+}
+
+void __attribute__((weak)) bm64_on_call_status_idle()
+{
+    printf("Call status: idle(weak)\n");
 }

@@ -23,8 +23,6 @@
         STATE(IDLE)   \
         STATE(RINGING)  \
         STATE(COMMUNICATION)   \
-        STATE(WAIT_ON_HOOK)  \
-        STATE(WAIT_OFF_HOOK)  \
         STATE(WAIT_CRANK_END)
 
 #define GENERATE_ENUM(ENUM) ENUM,
@@ -73,6 +71,14 @@ void bm64_on_incomming_call()
     xQueueSend(queue_idle, &event, 0); 
 }
 
+void bm64_on_call_status_idle()
+{
+    printf("Call status idle (main override)\n");
+    static Event event = CALL_ENDED;
+    xQueueSend(queue_communication, &event, 0); 
+    xQueueSend(queue_ringing, &event, 0); 
+}
+
 void ag1171_on_phone_offhook()
 {
     printf("Phone off-hook (main override)\n");
@@ -93,6 +99,7 @@ void task_main_loop()
     while(1)
     {
         Event event;
+
         printf("current_state : %s\n", STATE_NAMES[current_state]);
         switch(current_state)
         {
@@ -133,28 +140,37 @@ void task_main_loop()
                 printf("RINGING...\n");
                 // wait for the phone to be picked up
                 xQueueReceive(queue_ringing, &event, portMAX_DELAY);
-                printf("Received event phone off-hook\n");
-                if(ag1171_is_offhook())
+                if(event == OFF_HOOK)
                 {
                     printf("Phone is off-hook : accepting the call\n");
                     ag1171_stop_ringing();
                     bm64_accept_call();
                     current_state = COMMUNICATION;
                     break;
+                } 
+                else if(event == CALL_ENDED)
+                {
+                    printf("Call ended : back to idle\n");
+                    ag1171_stop_ringing();
+                    current_state = IDLE;
                 }
 
                 break;
             case COMMUNICATION:
                 xQueueReceive(queue_communication, &event, portMAX_DELAY);
+                printf("COMMUNICATION : event name : %s\n", EVENT_NAMES[event]);
                 if(event == ON_HOOK) 
                 {
                     printf("On-hook : end call\n");
                     bm64_end_call();
                 }
-                break;
-            case WAIT_ON_HOOK:
-                break;
-            case WAIT_OFF_HOOK:
+                if(event == CALL_ENDED)
+                {
+                    printf("Call ended: back to idle\n");
+                }
+                vTaskDelay(200 / portTICK_RATE_MS);
+                current_state = IDLE;
+                line_connect(false); // this will be done in IDLE anyway
                 break;
             case WAIT_CRANK_END:
                 break;
@@ -165,9 +181,9 @@ void task_main_loop()
 void app_main(void)
 {
 
-    queue_idle = xQueueCreate(10, sizeof(Event));
-    queue_ringing = xQueueCreate(10, sizeof(Event));
-    queue_communication = xQueueCreate(10, sizeof(Event));
+    queue_idle = xQueueCreate(1, sizeof(Event));
+    queue_ringing = xQueueCreate(1, sizeof(Event));
+    queue_communication = xQueueCreate(1, sizeof(Event));
 
     line_init();
     line_connect(true);
