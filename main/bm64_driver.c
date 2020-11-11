@@ -77,6 +77,8 @@ static void bm64_gpio_init()
     gpio_set_level(RST, 1);
 }
 
+static void bm64_ack_event(uint8_t event);
+
 static uint8_t compute_checksum(uint8_t *data, int length)
 {
     int i=0;
@@ -239,6 +241,8 @@ static int bm64_wait_event(Event * evt)
         default:
             break;
     }
+    // acknowldge the event to speed up processing 
+    bm64_ack_event(header->event_code);
     printf("\n");
     return BM64_NOERROR;
 }
@@ -271,6 +275,18 @@ static int bm64_send_command(uint8_t opcode, uint8_t * data, int data_len, uint8
     }
     uart_write_bytes(UART_PORT_NUMBER, (const char *) destination, *dest_len);
     return BM64_NOERROR;
+}
+
+static void bm64_ack_event(uint8_t event)
+{
+    #define OPCODE_ACK_EVENT 0x14
+
+    uint8_t buf[1024];   
+    int dest_len = 0;
+
+    bm64_make_command(OPCODE_ACK_EVENT, &event, 1, buf, &dest_len);
+
+    uart_write_bytes(UART_PORT_NUMBER, (const char *) buf, dest_len);
 }
 
 static void bm64_do_mmi_action(uint8_t action_payload)
