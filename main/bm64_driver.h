@@ -8,6 +8,8 @@ int bm64_init();
 void bm64_test();
 
 void bm64_accept_call();
+void bm64_reject_call();
+void bm64_end_call();
 
 void __attribute__((weak)) bm64_on_incomming_call();
 

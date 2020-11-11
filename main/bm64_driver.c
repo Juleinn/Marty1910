@@ -107,6 +107,7 @@ typedef enum EventType {
 typedef enum MMIAction {
     ACCEPT_CALL = 0x04,
     REJECT_CALL = 0x05,
+    END_CALL = 0x06,
 } __attribute__((packed)) MMIAction;
 
 typedef struct MMIActionPayload {
@@ -145,7 +146,6 @@ static void bm64_uart_init();
 static void bm64_reset(void);
 static void bm64_gpio_init();
 static int bm64_send_command(uint8_t opcode, uint8_t * data, int data_len, uint8_t *destination, int *dest_len);
-void bm64_accept_call();
 
 static int bm64_wait_event_buffer(uint8_t * buf, int * read_len)
 {
@@ -269,18 +269,33 @@ static int bm64_send_command(uint8_t opcode, uint8_t * data, int data_len, uint8
     return BM64_NOERROR;
 }
 
-void bm64_accept_call()
+static void bm64_do_mmi_action(uint8_t action_payload)
 {
     MMIActionPayload mmi = {
         .data_base_index = 0,
-        .action = ACCEPT_CALL,
+        .action = action_payload,
     };
 
     uint8_t buffer[64];
     int buffer_len = 64;
 #define MMI_ACTION 0x02
     bm64_send_command(MMI_ACTION, (uint8_t*)&mmi, sizeof(mmi), buffer, &buffer_len);
+}
+
+void bm64_accept_call()
+{
+    bm64_do_mmi_action(ACCEPT_CALL);
 };
+
+void bm64_reject_call()
+{
+    bm64_do_mmi_action(REJECT_CALL);
+};
+
+void bm64_end_call()
+{
+    bm64_do_mmi_action(END_CALL);
+}
 
 static void bm64_change_device_name(char* new_name)
 {
@@ -307,7 +322,6 @@ static void bm64_make_call(char* number)
     bm64_make_command(0x00, parameter, 20, buf, &dest_len);
 
     uart_write_bytes(UART_PORT_NUMBER, (const char *) buf, dest_len);
-
 }
 
 
@@ -320,9 +334,6 @@ static void bm64_rx_task()
         bm64_wait_event(&evt);
     }
 }
-
-
-/* Externally defined functions */
 
 
 int bm64_init()
