@@ -187,7 +187,7 @@ static int bm64_wait_event(Event * evt)
     }
 
     EventHeader * header = (EventHeader*) buf;     
-    //printf("Event : %s\n", EVENT_NAMES[header->event_code]);
+    printf("Event : %s\n", EVENT_NAMES[header->event_code]);
     switch(header->event_code)
     {
         case ACK:
@@ -341,7 +341,7 @@ int bm64_init()
     bm64_gpio_init();
     bm64_uart_init();
 
-    xTaskCreate(bm64_rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(bm64_rx_task, "uart_rx_task", 1024*4, NULL, configMAX_PRIORITIES, NULL);
 
     bm64_reset();
 
