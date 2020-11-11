@@ -38,6 +38,20 @@ static const char __attribute__((unused)) *STATE_NAMES[] = {
     FOREACH_STATE(GENERATE_STRING)
 };
 
+#define FOREACH_EVENT(EVENT)    \
+        EVENT(INCOMMING_CALL)   \
+        EVENT(OFF_HOOK)         \
+        EVENT(ON_HOOK)          \
+        EVENT(CALL_ENDED)
+
+typedef enum Event {
+    FOREACH_EVENT(GENERATE_ENUM)
+} Event;
+
+static const char __attribute__((unused)) *EVENT_NAMES[] = {
+    FOREACH_EVENT(GENERATE_STRING)
+};
+
 static State current_state = IDLE;
 
 TaskHandle_t taskMainLoop_Handle;
@@ -55,21 +69,22 @@ void bm64_on_incomming_call()
 {
     printf("Incomming call (main override)\n");
     // go to ringing state
-    static uint32_t event=0;
+    static Event event = INCOMMING_CALL;
     xQueueSend(queue_idle, &event, 0); 
 }
 
 void ag1171_on_phone_offhook()
 {
     printf("Phone off-hook (main override)\n");
-    static uint32_t event=0;
+    static Event event = OFF_HOOK;
     xQueueSendFromISR(queue_ringing, &event, 0);
 }
 
 void ag1171_on_phone_onhook()
 {
-    printf("Phone off-hook (main override)\n");
-    xSemaphoreGiveFromISR(semaphore_ringing, NULL);
+    printf("Phone on-hook (main override)\n");
+    static Event event = ON_HOOK;
+    xQueueSendFromISR(queue_communication, &event, 0);
 }
 
 void task_main_loop()
@@ -77,6 +92,7 @@ void task_main_loop()
     printf("main_loop...\n");
     while(1)
     {
+        Event event;
         printf("current_state : %s\n", STATE_NAMES[current_state]);
         switch(current_state)
         {
@@ -86,7 +102,6 @@ void task_main_loop()
 
                 printf("Idling...\n");
                 //xSemaphoreTake(semaphore_idle,portMAX_DELAY);
-                uint32_t event;
                 xQueueReceive(queue_idle, &event, portMAX_DELAY);
                 printf("Idling complete ! \n");
 
@@ -146,9 +161,9 @@ void task_main_loop()
 void app_main(void)
 {
 
-    queue_idle = xQueueCreate(10, sizeof(uint32_t));
-    queue_ringing = xQueueCreate(10, sizeof(uint32_t));
-    queue_communication = xQueueCreate(10, sizeof(uint32_t));
+    queue_idle = xQueueCreate(10, sizeof(Event));
+    queue_ringing = xQueueCreate(10, sizeof(Event));
+    queue_communication = xQueueCreate(10, sizeof(Event));
 
     line_init();
     line_connect(true);
