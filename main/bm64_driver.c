@@ -145,7 +145,7 @@ static void bm64_uart_init();
 static void bm64_reset(void);
 static void bm64_gpio_init();
 static int bm64_send_command(uint8_t opcode, uint8_t * data, int data_len, uint8_t *destination, int *dest_len);
-static void bm64_accept_call();
+void bm64_accept_call();
 
 static int bm64_wait_event_buffer(uint8_t * buf, int * read_len)
 {
@@ -163,7 +163,7 @@ static int bm64_wait_event_buffer(uint8_t * buf, int * read_len)
     len = len + uart_read_bytes(UART_PORT_NUMBER, 
             buf+len, // offset
             header.length, // length of data + checksum
-            200/portTICK_RATE_MS);
+            0);
     if(len < sizeof(EventHeader) + header.length)
     {
         return BM64_DATA_TOOSHORT;
@@ -187,7 +187,7 @@ static int bm64_wait_event(Event * evt)
     }
 
     EventHeader * header = (EventHeader*) buf;     
-    // printf("Event : %s\n", EVENT_NAMES[header->event_code]);
+    //printf("Event : %s\n", EVENT_NAMES[header->event_code]);
     switch(header->event_code)
     {
         case ACK:
@@ -222,11 +222,6 @@ static int bm64_wait_event(Event * evt)
             {
                 buf[read_len] = '\0';
                 printf("Caller ID : %s\r\n", &buf[sizeof(EventHeader) + 1]);
-                // pick up 
-                printf("Wait 2s before picking up\r\n");
-                vTaskDelay(2000 / portTICK_RATE_MS);
-                printf("Picking up\r\n");
-                bm64_accept_call();
                 break;
             };
 
@@ -274,7 +269,7 @@ static int bm64_send_command(uint8_t opcode, uint8_t * data, int data_len, uint8
     return BM64_NOERROR;
 }
 
-static void bm64_accept_call()
+void bm64_accept_call()
 {
     MMIActionPayload mmi = {
         .data_base_index = 0,

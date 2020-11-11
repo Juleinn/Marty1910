@@ -7,6 +7,8 @@
 int bm64_init();
 void bm64_test();
 
+void bm64_accept_call();
+
 void __attribute__((weak)) bm64_on_incomming_call();
 
 #define CALL_STATUS_INCOMMING_CALL 0x02
