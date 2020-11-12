@@ -62,10 +62,12 @@ static xQueueHandle queue_idle = NULL;
 static xQueueHandle queue_ringing = NULL;
 static xQueueHandle queue_communication = NULL;
 
+#define LOG(fmt, ...) printf("[%s] " fmt, STATE_NAMES[current_state], ##__VA_ARGS__)
+
 // override weak function
 void bm64_on_incomming_call()
 {
-    printf("Incomming call (main override)\n");
+    LOG("Incomming call (main override)\n");
     // go to ringing state
     static Event event = INCOMMING_CALL;
     xQueueSend(queue_idle, &event, 0); 
@@ -73,7 +75,7 @@ void bm64_on_incomming_call()
 
 void bm64_on_call_status_idle()
 {
-    printf("Call status idle (main override)\n");
+    LOG("Call status idle (main override)\n");
     static Event event = CALL_ENDED;
     xQueueSend(queue_communication, &event, 0); 
     xQueueSend(queue_ringing, &event, 0); 
@@ -81,36 +83,37 @@ void bm64_on_call_status_idle()
 
 void ag1171_on_phone_offhook()
 {
-    printf("Phone off-hook (main override)\n");
+    LOG("Phone off-hook (main override)\n");
     static Event event = OFF_HOOK;
     xQueueSendFromISR(queue_ringing, &event, 0);
 }
 
 void ag1171_on_phone_onhook()
 {
-    printf("Phone on-hook (main override)\n");
+    LOG("Phone on-hook (main override)\n");
     static Event event = ON_HOOK;
     xQueueSendFromISR(queue_communication, &event, 0);
 }
 
+
 void task_main_loop()
 {
-    printf("main_loop...\n");
+    LOG("main_loop...\n");
     while(1)
     {
         Event event;
 
-        printf("current_state : %s\n", STATE_NAMES[current_state]);
+        LOG("current_state : %s\n", STATE_NAMES[current_state]);
         switch(current_state)
         {
             case IDLE:
                 //line is disconnected in idle mode
                 line_connect(false);
 
-                printf("Idling...\n");
+                LOG("Idling...\n");
                 //xSemaphoreTake(semaphore_idle,portMAX_DELAY);
                 xQueueReceive(queue_idle, &event, portMAX_DELAY);
-                printf("Idling complete ! \n");
+                LOG("Idling complete ! \n");
 
                 if(line_is_cranking())
                 {
@@ -118,7 +121,7 @@ void task_main_loop()
                 }
                 else
                 {
-                    printf("Line is not being crancked. Connecting line...\n");
+                    LOG("Line is not being crancked. Connecting line...\n");
                     line_connect(true);
                     // give relays time to flip
                     vTaskDelay(500 / portTICK_RATE_MS);
@@ -126,7 +129,7 @@ void task_main_loop()
                     if(ag1171_is_offhook())
                     {
                         // already off-hook : reject call
-                        printf("Off-hook : rejecting call\n");
+                        LOG("Off-hook : rejecting call\n");
                     }
                     else
                     {
@@ -137,19 +140,19 @@ void task_main_loop()
                 }
                 break;
             case RINGING:
-                printf("RINGING...\n");
+                LOG("RINGING...\n");
                 // wait for the phone to be picked up
                 xQueueReceive(queue_ringing, &event, portMAX_DELAY);
                 if(event == CALL_ENDED)
                 {
-                    printf("Call ended : back to idle\n");
+                    LOG("Call ended : back to idle\n");
                     ag1171_stop_ringing();
                     current_state = IDLE;
                     break;
                 }
                 if(event == OFF_HOOK || ag1171_is_offhook())
                 {
-                    printf("Phone is off-hook : accepting the call\n");
+                    LOG("Phone is off-hook : accepting the call\n");
                     ag1171_stop_ringing();
                     bm64_accept_call();
                     current_state = COMMUNICATION;
@@ -159,15 +162,15 @@ void task_main_loop()
                 break;
             case COMMUNICATION:
                 xQueueReceive(queue_communication, &event, portMAX_DELAY);
-                printf("COMMUNICATION : event name : %s\n", EVENT_NAMES[event]);
+                LOG("Event : %s\n", EVENT_NAMES[event]);
                 if(event == ON_HOOK || !ag1171_is_offhook()) 
                 {
-                    printf("On-hook : end call\n");
+                    LOG("On-hook : end call\n");
                     bm64_end_call();
                 }
                 if(event == CALL_ENDED)
                 {
-                    printf("Call ended: back to idle\n");
+                    LOG("Call ended: back to idle\n");
                 }
                 vTaskDelay(200 / portTICK_RATE_MS);
                 current_state = IDLE;
