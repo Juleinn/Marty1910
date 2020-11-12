@@ -35,36 +35,30 @@ void __attribute__((weak)) ag1171_on_phone_onhook()
 
 static void ag1171_task(void* arg)
 {
-    uint32_t value;
-    long lastTickCount = xTaskGetTickCount();
-    #define DEBOUNCE_TIME_MS 30
+    uint32_t last_value = 0;
     for(;;) {
-        if(xQueueReceive(gpio_evt_queue, &value, portMAX_DELAY)) {
-           
-            if((xTaskGetTickCount() - lastTickCount) * portTICK_RATE_MS >= DEBOUNCE_TIME_MS)
+        uint32_t value1 = gpio_get_level(SHK); 
+        if(value1 != last_value) 
+        {
+            vTaskDelay(15 / portTICK_RATE_MS); // ag1171 doc recommends >= 10ms
+            uint32_t value2 = gpio_get_level(SHK); 
+            if(value1 == value2)
             {
-                value = gpio_get_level(SHK); 
-                vTaskDelay(DEBOUNCE_TIME_MS/portTICK_RATE_MS); // debounce 15ms
-                if(value == gpio_get_level(SHK))
+                if(value1)
                 {
-                    if(value)
-                    {
-                        printf("Phone off-hook\n");
-                        ag1171_on_phone_offhook();
-                    }
-                    else
-                    {
-                        printf("Phone on-hook\n");
-                        ag1171_on_phone_onhook();
-                    }
+                    printf("Phone off-hook\n");
+                    ag1171_on_phone_offhook();
                 }
+                else
+                {
+                    printf("Phone on-hook\n");
+                    ag1171_on_phone_onhook();
+                }
+                last_value = value1;
             }
-            else
-            {
-                // do nothing actually
-            }
-            lastTickCount = xTaskGetTickCount();
+
         }
+        vTaskDelay(15 / portTICK_RATE_MS); // Lets not loop around too fast
     }
 }
 
@@ -96,7 +90,7 @@ void ag1171_init()
     io_conf.pull_down_en = 1;
     gpio_config(&io_conf);
 
-    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    gpio_evt_queue = xQueueCreate(1, sizeof(uint32_t));
     //start gpio task
     xTaskCreate(ag1171_task, "ag1171_task", 2048, NULL, 10, NULL);
 

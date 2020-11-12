@@ -95,6 +95,12 @@ void ag1171_on_phone_onhook()
     xQueueSendFromISR(queue_communication, &event, 0);
 }
 
+static void empty_queue(xQueueHandle q)
+{
+    uint32_t data;
+    while(xQueueReceive(q, &data, 0));
+}
+
 
 void task_main_loop()
 {
@@ -111,6 +117,9 @@ void task_main_loop()
                 line_connect(false);
 
                 LOG("Idling...\n");
+
+                // clear queue in case of duplicate events
+                empty_queue(queue_idle);
                 //xSemaphoreTake(semaphore_idle,portMAX_DELAY);
                 xQueueReceive(queue_idle, &event, portMAX_DELAY);
                 LOG("Idling complete ! \n");
@@ -141,6 +150,9 @@ void task_main_loop()
                 break;
             case RINGING:
                 LOG("RINGING...\n");
+                // clear queue in case of duplicate events
+                empty_queue(queue_ringing);
+
                 // wait for the phone to be picked up
                 xQueueReceive(queue_ringing, &event, portMAX_DELAY);
                 if(event == CALL_ENDED)
@@ -161,6 +173,8 @@ void task_main_loop()
 
                 break;
             case COMMUNICATION:
+                // clear queue in case of duplicate events
+                empty_queue(queue_communication);
                 xQueueReceive(queue_communication, &event, portMAX_DELAY);
                 LOG("Event : %s\n", EVENT_NAMES[event]);
                 if(event == ON_HOOK || !ag1171_is_offhook()) 
