@@ -77,6 +77,7 @@ static void bm64_gpio_init()
     gpio_set_level(RST, 1);
 }
 
+
 static void bm64_ack_event(uint8_t event);
 
 static uint8_t compute_checksum(uint8_t *data, int length)
@@ -344,6 +345,29 @@ static void bm64_make_call(char* number)
     uart_write_bytes(UART_PORT_NUMBER, (const char *) buf, dest_len);
 }
 
+void bm64_set_gain(uint8_t HF, uint8_t mic)
+{
+    printf("Setting gain...\n");
+    uint8_t parameter[6] = {0x00};
+    #define SET_OVERALL_GAIN_MASK 0b00000100 // HF_GAIN | Line_in_GAIN
+    #define SET_OVERALL_GAIN_TYPE 0x03 // absolute gain level
+    
+    parameter[0] = 0x00; // data_base_index
+    parameter[1] = SET_OVERALL_GAIN_MASK;
+    parameter[2] = SET_OVERALL_GAIN_TYPE;
+    parameter[3] = 0x00; // unused gain
+    parameter[4] = HF;
+    parameter[5] = mic;
+
+    uint8_t buf[1024];   
+    int dest_len = 1024;
+
+    bm64_make_command(0x23, parameter, 6, buf, &dest_len);
+
+    uart_write_bytes(UART_PORT_NUMBER, buf, dest_len);
+    
+}
+
 
 static void bm64_rx_task()
 {
@@ -370,9 +394,8 @@ int bm64_init()
 
     bm64_change_device_name("Marty 1910");
 
-    vTaskDelay(3000 / portTICK_RATE_MS);
-    // bm64_make_call("0973134411");
-
+    vTaskDelay(80 / portTICK_RATE_MS);
+    bm64_set_gain(0x0E, 0x0E);
 
     return BM64_NOERROR; 
 }

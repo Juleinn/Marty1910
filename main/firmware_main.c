@@ -126,7 +126,7 @@ void task_main_loop()
 
                 if(line_is_cranking())
                 {
-
+                    LOG("line_is_cranking !\n");
                 }
                 else
                 {
