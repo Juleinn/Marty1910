@@ -16,7 +16,10 @@ void bm64_set_gain(uint8_t HF, uint8_t mic);
 void __attribute__((weak)) bm64_on_incomming_call();
 void __attribute__((weak)) bm64_on_call_status_idle();
 
+void __attribute__((weak)) bm64_on_outgoing_call();
+
 #define CALL_STATUS_INCOMMING_CALL 0x02
+#define CALL_STATUS_OUTGOING_CALL 0x03
 #define CALL_STATUS_IDLE 0x00
 
 #endif

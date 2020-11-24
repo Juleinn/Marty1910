@@ -214,6 +214,7 @@ static int bm64_wait_event(Event * evt)
                 CallStatus cs;
                 cs.data_base_index = buf[sizeof(EventHeader)];
                 cs.call_status = buf[sizeof(EventHeader)+sizeof(cs.data_base_index)];
+                printf("Call status : %s\n", CALL_STATUSES[cs.call_status]);
                 if(cs.call_status == CALL_STATUS_INCOMMING_CALL) 
                 {
                     bm64_on_incomming_call();
@@ -221,6 +222,10 @@ static int bm64_wait_event(Event * evt)
                 if(cs.call_status == CALL_STATUS_IDLE)
                 {
                     bm64_on_call_status_idle();
+                }
+                if(cs.call_status == CALL_STATUS_OUTGOING_CALL)
+                {
+                    bm64_on_outgoing_call();
                 }
 
                 break;
@@ -409,3 +414,10 @@ void __attribute__((weak)) bm64_on_call_status_idle()
 {
     printf("Call status: idle(weak)\n");
 }
+
+void __attribute__((weak)) bm64_on_outgoing_call()
+{
+    printf("Outgoing call (weak)\n");
+}
+
+

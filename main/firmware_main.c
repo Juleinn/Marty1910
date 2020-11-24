@@ -23,7 +23,8 @@
         STATE(IDLE)   \
         STATE(RINGING)  \
         STATE(COMMUNICATION)   \
-        STATE(WAIT_CRANK_END)
+        STATE(WAIT_CRANK_END)  \
+        STATE(WAIT_OFF_HOOK)
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -38,6 +39,7 @@ static const char __attribute__((unused)) *STATE_NAMES[] = {
 
 #define FOREACH_EVENT(EVENT)    \
         EVENT(INCOMMING_CALL)   \
+        EVENT(OUTGOING_CALL)    \
         EVENT(OFF_HOOK)         \
         EVENT(ON_HOOK)          \
         EVENT(CALL_ENDED)
@@ -60,6 +62,7 @@ static volatile SemaphoreHandle_t semaphore_ringing = NULL;
 
 static xQueueHandle queue_idle = NULL;
 static xQueueHandle queue_ringing = NULL;
+static xQueueHandle queue_wait_off_hook = NULL;
 static xQueueHandle queue_communication = NULL;
 
 #define LOG(fmt, ...) printf("[%s] " fmt, STATE_NAMES[current_state], ##__VA_ARGS__)
@@ -86,6 +89,7 @@ void ag1171_on_phone_offhook()
     LOG("Phone off-hook (main override)\n");
     static Event event = OFF_HOOK;
     xQueueSendFromISR(queue_ringing, &event, 0);
+    xQueueSendFromISR(queue_wait_off_hook, &event, 0);
 }
 
 void ag1171_on_phone_onhook()
@@ -93,6 +97,13 @@ void ag1171_on_phone_onhook()
     LOG("Phone on-hook (main override)\n");
     static Event event = ON_HOOK;
     xQueueSendFromISR(queue_communication, &event, 0);
+}
+
+void bm64_on_outgoing_call()
+{
+    LOG("Outgoing call from smartphone\n");
+    static Event event = OUTGOING_CALL;
+    xQueueSend(queue_idle, &event, 0);
 }
 
 static void empty_queue(xQueueHandle q)
@@ -130,20 +141,36 @@ void task_main_loop()
                 }
                 else
                 {
-                    LOG("Line is not being crancked. Connecting line...\n");
-                    line_connect(true);
-                    // give relays time to flip
-                    vTaskDelay(500 / portTICK_RATE_MS);
-                    // check off-hook
-                    if(ag1171_is_offhook())
+                    line_connect(true); // always connect the line
+                    if(event == INCOMMING_CALL)
                     {
-                        // already off-hook : reject call
-                        LOG("Off-hook : rejecting call\n");
+                        LOG("Line is not being crancked. Connecting line...\n");
+                        // give relays time to flip
+                        vTaskDelay(500 / portTICK_RATE_MS);
+                        // check off-hook
+                        if(ag1171_is_offhook())
+                        {
+                            // already off-hook : reject call
+                            LOG("Off-hook : rejecting call\n");
+                        }
+                        else
+                        {
+                            ag1171_start_ringing();
+                            current_state = RINGING;
+                            break;
+                        }
                     }
-                    else
+                    else if(event == OUTGOING_CALL)
                     {
-                        ag1171_start_ringing();
-                        current_state = RINGING;
+                        // line is not cranking, as we previously checked above
+                        // line is also connected 
+                        // we must make sure we're offhook otherwise notify user to either go off-hook or switch its communication device to internal MIC/headphones/speaker
+                        if(!ag1171_is_offhook())
+                        {
+                            ag1171_ring_short();
+                        }
+                        // now wait for phone to go off-hook
+                        current_state = WAIT_OFF_HOOK;
                         break;
                     }
                 }
@@ -172,6 +199,15 @@ void task_main_loop()
                 } 
 
                 break;
+
+            case WAIT_OFF_HOOK:
+                LOG("Waiting for phone to go off hook\n");
+                empty_queue(queue_wait_off_hook);
+                xQueueReceive(queue_wait_off_hook, &event, portMAX_DELAY);
+                // now we can go to communication state because even if the callee doesn't answer the call
+                // we can only wait to go back on hook
+                current_state = COMMUNICATION;
+                break;
             case COMMUNICATION:
                 // clear queue in case of duplicate events
                 empty_queue(queue_communication);
@@ -192,6 +228,8 @@ void task_main_loop()
                 break;
             case WAIT_CRANK_END:
                 break;
+
+
         }
     }
 }
@@ -201,6 +239,7 @@ void app_main(void)
 
     queue_idle = xQueueCreate(1, sizeof(Event));
     queue_ringing = xQueueCreate(1, sizeof(Event));
+    queue_wait_off_hook = xQueueCreate(1, sizeof(Event));
     queue_communication = xQueueCreate(1, sizeof(Event));
 
     line_init();

@@ -161,3 +161,23 @@ static void ag1171_ring_task()
     }
     vTaskDelete(NULL);
 }
+
+void ag1171_ring_short()
+{
+    // ring 3 times to make sure bells are hit at least 2 times
+    // as hammer might be stuck on one side
+    // but since we need to go back to FR=1 at the end, needs to be even, so 4
+    gpio_set_level(RM, 1);
+
+    int i;
+    for(i=0;i<4;i++)
+    {
+        // 25ms * 2 = 50ms = 20Hz (ring tone freq from original Marty 1910 phones)
+        gpio_set_level(FR, 0);
+        vTaskDelay(25 / portTICK_RATE_MS);
+        gpio_set_level(FR, 1);
+        vTaskDelay(25 / portTICK_RATE_MS);
+    }
+
+    gpio_set_level(RM, 0);
+}
