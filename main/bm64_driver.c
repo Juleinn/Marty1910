@@ -17,8 +17,8 @@
 // uart config
 #define UART_PORT_NUMBER 2
 #define UART_SPEED       115200
-#define UART_RXD_PIN     5
-#define UART_TXD_PIN     4
+#define UART_RXD_PIN     4
+#define UART_TXD_PIN     5
 #define UART_BUF_SIZE    1024
 
 uart_config_t uart_config = {

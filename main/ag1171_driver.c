@@ -5,8 +5,8 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-#define RM 23
-#define FR 22
+#define RM 22
+#define FR 23
 #define SHK 34
 
 #define GPIO_OUTPUT_PIN_SEL ((1ULL << RM) | (1ULL << FR))

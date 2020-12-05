@@ -34,7 +34,7 @@ static void line_init_relays()
     //configure GPIO with the given settings
     gpio_config(&io_conf);
 
-    gpio_set_level(RELAY_1, 1);
+    gpio_set_level(RELAY_1, 0);
 }
 
 static uint32_t line_AC_mV;
@@ -55,12 +55,12 @@ void line_connect(bool connect)
     if(connect) 
     {
         printf("Line connect !!\n");
-        gpio_set_level(RELAY_1, 0);
+        gpio_set_level(RELAY_1, 1);
         line_connected = true;
     }
     else 
     {
-        gpio_set_level(RELAY_1, 1);
+        gpio_set_level(RELAY_1, 0);
         line_connected = false;
     }
 }
