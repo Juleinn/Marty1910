@@ -22,4 +22,6 @@ void __attribute__((weak)) bm64_on_outgoing_call();
 #define CALL_STATUS_OUTGOING_CALL 0x03
 #define CALL_STATUS_IDLE 0x00
 
+void bm64_prepare_flash_mode();
+
 #endif

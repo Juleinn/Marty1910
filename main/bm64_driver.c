@@ -77,6 +77,13 @@ static void bm64_gpio_init()
     gpio_set_level(RST, 1);
 }
 
+void bm64_prepare_flash_mode()
+{
+    bm64_gpio_init();
+    gpio_set_level(P2_0, 0);
+    gpio_set_level(EAN, 0);
+    bm64_reset();
+}
 
 static void bm64_ack_event(uint8_t event);
 
