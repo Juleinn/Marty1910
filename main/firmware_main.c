@@ -42,7 +42,8 @@ static const char __attribute__((unused)) *STATE_NAMES[] = {
         EVENT(OUTGOING_CALL)    \
         EVENT(OFF_HOOK)         \
         EVENT(ON_HOOK)          \
-        EVENT(CALL_ENDED)
+        EVENT(CALL_ENDED)       \
+        EVENT(CRANKING_STATUS)  
 
 typedef enum Event {
     FOREACH_EVENT(GENERATE_ENUM)
@@ -64,6 +65,7 @@ static xQueueHandle queue_idle = NULL;
 static xQueueHandle queue_ringing = NULL;
 static xQueueHandle queue_wait_off_hook = NULL;
 static xQueueHandle queue_communication = NULL;
+static xQueueHandle queue_cranking = NULL;
 
 #define LOG(fmt, ...) printf("[%s] " fmt, STATE_NAMES[current_state], ##__VA_ARGS__)
 
@@ -112,6 +114,14 @@ static void empty_queue(xQueueHandle q)
     while(xQueueReceive(q, &data, 0));
 }
 
+void line_on_cranking_changed()
+{
+    LOG("Line cranking status changed : %d\n", line_is_cranking());
+    static Event event = CRANKING_STATUS;
+    xQueueSend(queue_idle, &event, 0); 
+    xQueueSend(queue_cranking, &event, 0); 
+}
+
 
 void task_main_loop()
 {
@@ -137,7 +147,9 @@ void task_main_loop()
 
                 if(line_is_cranking())
                 {
-                    LOG("line_is_cranking !\n");
+                    LOG("line_is_cranking (main loop) !\n");
+                    current_state = WAIT_CRANK_END;
+                    break;
                 }
                 else
                 {
@@ -227,6 +239,13 @@ void task_main_loop()
                 line_connect(false); // this will be done in IDLE anyway
                 break;
             case WAIT_CRANK_END:
+                empty_queue(queue_cranking);
+                xQueueReceive(queue_cranking, &event, portMAX_DELAY);
+                if(!line_is_cranking())
+                {
+                    LOG("Line cranking complete\n");
+                    current_state = IDLE;
+                }
                 break;
 
 
@@ -241,6 +260,7 @@ void app_main(void)
     queue_ringing = xQueueCreate(1, sizeof(Event));
     queue_wait_off_hook = xQueueCreate(1, sizeof(Event));
     queue_communication = xQueueCreate(1, sizeof(Event));
+    queue_cranking = xQueueCreate(1, sizeof(Event));
 
     line_init();
     line_connect(true);

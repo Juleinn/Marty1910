@@ -39,11 +39,22 @@ static void line_init_relays()
 
 static uint32_t line_AC_mV;
 
+#define CRANK_THRESHOLD_mV 600
+
 static void line_relay_task()
 {
     while(1)
     {
-        line_AC_mV = line_sample_AC_mV();
+        uint32_t new_line_AC_mV = line_sample_AC_mV();
+        // detect both rising and falling edges here
+        if((new_line_AC_mV > CRANK_THRESHOLD_mV && line_AC_mV <= CRANK_THRESHOLD_mV) || // rising edge
+           (new_line_AC_mV <= CRANK_THRESHOLD_mV && line_AC_mV > CRANK_THRESHOLD_mV)) // falling edge
+        {
+            line_on_cranking_changed();
+        }
+
+        line_AC_mV = new_line_AC_mV;
+
         vTaskDelay(100 / portTICK_RATE_MS);
     }
 }
@@ -70,7 +81,6 @@ bool line_is_connected()
     return line_connected;
 }
 
-#define CRANK_THRESHOLD_mV 600
 
 bool line_is_cranking()
 {
@@ -101,4 +111,6 @@ uint32_t line_sample_AC_mV()
 
     return voltage;
 }
+
+__attribute__((weak)) void line_on_cranking_changed() {}
 

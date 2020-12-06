@@ -17,4 +17,6 @@ void line_connect(bool connect);
 bool line_is_connected();
 bool line_is_cranking();
 
+__attribute__((weak)) void line_on_cranking_changed();
+
 #endif
